@@ -30,55 +30,29 @@ If you are calling them with increasing inputs, this will sieve a whole bunch of
 
 
 The most robust way to test a prime is to use isPrime(n).
-However, if you are testing a lot of primes, one at a time, several optimizations are included.
-The general format is isPrime[Small][Notx][Unsafe](n). (Don't include the brackets.)
+However, if you are testing a lot of primes, one at a time, some optimizations are included.
+The general format is isPrime[Small][Unsafe/Wheel](n). (Don't include the brackets.)
 
 Include [Small] if n is an unsigned int (32 bits, max 4 billion), and not an unsigned long long (64 bits, max a whole bunch).
     Note: Because of performance issues, the cutoff is actually 142857*30030=4289995710, not 2^32-1=4294967296.
-Include the [Notx] clause if you already know something about the primes:
-    Use NotDiv2 if you know it is not divisible by or equal to 2.
-    Use NotDiv23 if you know it is not divisible by or equal to 2 or 3.
-    Use NotDiv25 if you know it is not divisible by or equal to 2 or 5.
-    Use NotDiv235 if you know it is not divisible by or equal to 2, 3, or 5.
-    Use Not23571113 if you know it is not 2, 3, 5, 7, 11, or 13.
-    Use Not3571113NotDiv2 if you know it is not 3, 5, 7, 11, or 13, and is not divisible by or equal to 2.
-    Use Not571113NotDiv23 if you know it is not 5, 7, 11, or 13, and is not divisible by or equal to 2 or 3.
-    Use Not371113NotDiv25 if you know it is not 3, 7, 11, or 13, and is not divisible by or equal to 2 or 5.
-    Use Not71113NotDiv235 if you know it is not 7, 11, or 13, and is not divisible by or equal to 2, 3, or 5.
-    Use NotDiv23571113 if you know it is not divisible by 2, 3, 5, 7, 11, or 13.
 Include [Unsafe] if you have already called buildSeiveTo(n) and you know the sieve is big enough.
-
-So the most optimized version is isPrimeSmallNotDiv23571113Unsafe(n).
+Include [Wheel] if you want to use trial division instead of building a sieve and generating all prime numbers up to n.
+    This is pretty efficient, it will not divide by any composites that are divisible by 2, 3, 5, 7, 11, or 13.
+[Wheel] and [Unsafe] cannot be used together.
 
 Example:
     PrimeData pd;
     pd.buildSieveTo(1000000000);
     for(unsigned int i=999999931; i<999999950; i+=2){
-        if(pd.isPrimeSmallNot3571113NotDiv2Unsafe(i))
+        if(pd.isPrimeSmallUnsafe(i))
             std::cout<<i<<" is prime!"<<std::endl;
         else
             std::cout<<i<<" is not prime."<<std::endl;
     }
 
-If you want to use trial division instead of building a sieve and generating all prime numbers up to n, use isPrimeWheel(n).
-This is pretty efficient, it will not divide by any composites that are divisible by 2, 3, 5, 7, 11, or 13.
-Optimizations are included for this as well, the format is isPrime[Small][Notx]Wheel(n).
-[Small] works the same way as in isPrime(n).
-The [Notx] clause works almost the same as in isPrime(n), except you can't pass 1 as the parameter:
-    Use Not1NotDiv2 if you know it is not 1 and is not divisible by or equal to 2.
-    Use Not1NotDiv23 if you know it is not 1 and is not divisible by or equal to 2 or 3.
-    Use Not1NotDiv25 if you know it is not 1 and is not divisible by or equal to 2 or 5.
-    Use Not1NotDiv235 if you know it is not 1 and is not divisible by or equal to 2, 3, or 5.
-    Use Not123571113 if you know it is not 1, 2, 3, 5, 7, 11, or 13.
-    Use Not13571113NotDiv2 if you know it is not 1, 3, 5, 7, 11, or 13, and is not divisible by or equal to 2.
-    Use Not1571113NotDiv23 if you know it is not 1, 5, 7, 11, or 13, and is not divisible by or equal to 2 or 3.
-    Use Not1371113NotDiv25 if you know it is not 1, 3, 7, 11, or 13, and is not divisible by or equal to 2 or 5.
-    Use Not171113NotDiv235 if you know it is not 1, 7, 11, or 13, and is not divisible by or equal to 2, 3, or 5.
-    Use Not1NotDiv23571113 if you know it is not 1 and is not divisible by 2, 3, 5, 7, 11, or 13.
-
 Example:
     PrimeData pd;
-    std::cout<<pd.isPrimeSmallNot171113NotDiv235Wheel(999999937)<<std::endl;
+    std::cout<<pd.isPrimeSmallWheel(999999937)<<std::endl;
 
 
 
@@ -122,6 +96,8 @@ Example:
 To find how many primes exist up to n, use numPrimesUpTo(n).
 The optimization numPrimesUpToSmall(n) is included, where [Small] works the same way as above.
 
+
+
 To generate the actual primes up to n, use primesUpTo(n,primes), where primes is a vector of unsigned long long.
 If you are only calling this once, you don't need to call buildSieveTo(n) first, it will handle it.
 This function takes longer than buildSieveTo(n), but it stores the primes in a human-readable format,
@@ -146,8 +122,7 @@ If you are only calling this once, you don't need to call buildSieveTo(n) first.
 The optimization firstPrimesSmall(n,primes) is included. In this case,
     n must be at most 203056267, the number of primes below 4289995710, and
     primes must be a vector of unsigned int instead of unsigned long long.
-This function can go a bit further than primesUpTo, because it knows ahead of time how large to make the vector,
-    and doesn't have to overcompensate.
+This function can go a bit further than primesUpTo, because it knows ahead of time how large to make the vector, and doesn't have to overcompensate.
     On my computer, I can safely generate the first 230 million primes, up to around 4.9 billion.
 
 Example:
@@ -223,93 +198,6 @@ class PrimeData {
                 return sieve[n/30030*5760+indexes[n%30030]];
             return bigsieve[n/30030*5760+indexes[n%30030]-822856320];
         }
-        bool isPrimeNotDiv2(unsigned long long n){
-            if(n==3 || n==5 || n==7 || n==11 || n==13)
-                return true;
-            if(!(n%3) || !(n%5) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            buildSieveTo(n);
-            if(n<=4289995710U)
-                return sieve[n/30030*5760+indexes[n%30030]];
-            return bigsieve[n/30030*5760+indexes[n%30030]-822856320];
-        }
-        bool isPrimeNotDiv23(unsigned long long n){
-            if(n==5 || n==7 || n==11 || n==13)
-                return true;
-            if(!(n%5) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            buildSieveTo(n);
-            if(n<=4289995710U)
-                return sieve[n/30030*5760+indexes[n%30030]];
-            return bigsieve[n/30030*5760+indexes[n%30030]-822856320];
-        }
-        bool isPrimeNotDiv25(unsigned long long n){
-            if(n==3 || n==7 || n==11 || n==13)
-                return true;
-            if(!(n%3) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            buildSieveTo(n);
-            if(n<=4289995710U)
-                return sieve[n/30030*5760+indexes[n%30030]];
-            return bigsieve[n/30030*5760+indexes[n%30030]-822856320];
-        }
-        bool isPrimeNotDiv235(unsigned long long n){
-            if(n==7 || n==11 || n==13)
-                return true;
-            if(!(n%7) || !(n%11) || !(n%13))
-                return false;
-            buildSieveTo(n);
-            if(n<=4289995710U)
-                return sieve[n/30030*5760+indexes[n%30030]];
-            return bigsieve[n/30030*5760+indexes[n%30030]-822856320];
-        }
-        bool isPrimeNot23571113(unsigned long long n){
-            if(!(n&1U) || !(n%3) || !(n%5) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            buildSieveTo(n);
-            if(n<=4289995710U)
-                return sieve[n/30030*5760+indexes[n%30030]];
-            return bigsieve[n/30030*5760+indexes[n%30030]-822856320];
-        }
-        bool isPrimeNot3571113NotDiv2(unsigned long long n){
-            if(!(n%3) || !(n%5) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            buildSieveTo(n);
-            if(n<=4289995710U)
-                return sieve[n/30030*5760+indexes[n%30030]];
-            return bigsieve[n/30030*5760+indexes[n%30030]-822856320];
-        }
-        bool isPrimeNot571113NotDiv23(unsigned long long n){
-            if(!(n%5) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            buildSieveTo(n);
-            if(n<=4289995710U)
-                return sieve[n/30030*5760+indexes[n%30030]];
-            return bigsieve[n/30030*5760+indexes[n%30030]-822856320];
-        }
-        bool isPrimeNot371113NotDiv25(unsigned long long n){
-            if(!(n%3) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            buildSieveTo(n);
-            if(n<=4289995710U)
-                return sieve[n/30030*5760+indexes[n%30030]];
-            return bigsieve[n/30030*5760+indexes[n%30030]-822856320];
-        }
-        bool isPrimeNot71113NotDiv235(unsigned long long n){
-            if(!(n%7) || !(n%11) || !(n%13))
-                return false;
-            buildSieveTo(n);
-            if(n<=4289995710U)
-                return sieve[n/30030*5760+indexes[n%30030]];
-            return bigsieve[n/30030*5760+indexes[n%30030]-822856320];
-        }
-        bool isPrimeNotDiv23571113(unsigned long long n){
-            buildSieveTo(n);
-            if(n<=4289995710U)
-                return sieve[n/30030*5760+indexes[n%30030]];
-            return bigsieve[n/30030*5760+indexes[n%30030]-822856320];
-        }
-
         bool isPrimeUnsafe(unsigned long long n){
             if(n==2 || n==3 || n==5 || n==7 || n==11 || n==13)
                 return true;
@@ -319,83 +207,6 @@ class PrimeData {
                 return sieve[n/30030*5760+indexes[n%30030]];
             return bigsieve[n/30030*5760+indexes[n%30030]-822856320];
         }
-        bool isPrimeNotDiv2Unsafe(unsigned long long n){
-            if(n==3 || n==5 || n==7 || n==11 || n==13)
-                return true;
-            if(!(n%3) || !(n%5) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            if(n<=4289995710U)
-                return sieve[n/30030*5760+indexes[n%30030]];
-            return bigsieve[n/30030*5760+indexes[n%30030]-822856320];
-        }
-        bool isPrimeNotDiv23Unsafe(unsigned long long n){
-            if(n==5 || n==7 || n==11 || n==13)
-                return true;
-            if(!(n%5) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            if(n<=4289995710U)
-                return sieve[n/30030*5760+indexes[n%30030]];
-            return bigsieve[n/30030*5760+indexes[n%30030]-822856320];
-        }
-        bool isPrimeNotDiv25Unsafe(unsigned long long n){
-            if(n==3 || n==7 || n==11 || n==13)
-                return true;
-            if(!(n%3) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            if(n<=4289995710U)
-                return sieve[n/30030*5760+indexes[n%30030]];
-            return bigsieve[n/30030*5760+indexes[n%30030]-822856320];
-        }
-        bool isPrimeNotDiv235Unsafe(unsigned long long n){
-            if(n==7 || n==11 || n==13)
-                return true;
-            if(!(n%7) || !(n%11) || !(n%13))
-                return false;
-            if(n<=4289995710U)
-                return sieve[n/30030*5760+indexes[n%30030]];
-            return bigsieve[n/30030*5760+indexes[n%30030]-822856320];
-        }
-        bool isPrimeNot23571113Unsafe(unsigned long long n){
-            if(!(n&1U) || !(n%3) || !(n%5) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            if(n<=4289995710U)
-                return sieve[n/30030*5760+indexes[n%30030]];
-            return bigsieve[n/30030*5760+indexes[n%30030]-822856320];
-        }
-        bool isPrimeNot3571113NotDiv2Unsafe(unsigned long long n){
-            if(!(n%3) || !(n%5) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            if(n<=4289995710U)
-                return sieve[n/30030*5760+indexes[n%30030]];
-            return bigsieve[n/30030*5760+indexes[n%30030]-822856320];
-        }
-        bool isPrimeNot571113NotDiv23Unsafe(unsigned long long n){
-            if(!(n%5) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            if(n<=4289995710U)
-                return sieve[n/30030*5760+indexes[n%30030]];
-            return bigsieve[n/30030*5760+indexes[n%30030]-822856320];
-        }
-        bool isPrimeNot371113NotDiv25Unsafe(unsigned long long n){
-            if(!(n%3) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            if(n<=4289995710U)
-                return sieve[n/30030*5760+indexes[n%30030]];
-            return bigsieve[n/30030*5760+indexes[n%30030]-822856320];
-        }
-        bool isPrimeNot71113NotDiv235Unsafe(unsigned long long n){
-            if(!(n%7) || !(n%11) || !(n%13))
-                return false;
-            if(n<=4289995710U)
-                return sieve[n/30030*5760+indexes[n%30030]];
-            return bigsieve[n/30030*5760+indexes[n%30030]-822856320];
-        }
-        bool isPrimeNotDiv23571113Unsafe(unsigned long long n){
-            if(n<=4289995710U)
-                return sieve[n/30030*5760+indexes[n%30030]];
-            return bigsieve[n/30030*5760+indexes[n%30030]-822856320];
-        }
-
         bool isPrimeSmall(unsigned int n){
             if(n==2 || n==3 || n==5 || n==7 || n==11 || n==13)
                 return true;
@@ -404,73 +215,6 @@ class PrimeData {
             doSieve(n);
             return sieve[n/30030*5760+indexes[n%30030]];
         }
-        bool isPrimeSmallNotDiv2(unsigned int n){
-            if(n==3 || n==5 || n==7 || n==11 || n==13)
-                return true;
-            if(!(n%3) || !(n%5) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            doSieve(n);
-            return sieve[n/30030*5760+indexes[n%30030]];
-        }
-        bool isPrimeSmallNotDiv23(unsigned int n){
-            if(n==5 || n==7 || n==11 || n==13)
-                return true;
-            if(!(n%5) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            doSieve(n);
-            return sieve[n/30030*5760+indexes[n%30030]];
-        }
-        bool isPrimeSmallNotDiv25(unsigned int n){
-            if(n==3 || n==7 || n==11 || n==13)
-                return true;
-            if(!(n%3) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            doSieve(n);
-            return sieve[n/30030*5760+indexes[n%30030]];
-        }
-        bool isPrimeSmallNotDiv235(unsigned int n){
-            if(n==7 || n==11 || n==13)
-                return true;
-            if(!(n%7) || !(n%11) || !(n%13))
-                return false;
-            doSieve(n);
-            return sieve[n/30030*5760+indexes[n%30030]];
-        }
-        bool isPrimeSmallNot23571113(unsigned int n){
-            if(!(n&1U) || !(n%3) || !(n%5) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            doSieve(n);
-            return sieve[n/30030*5760+indexes[n%30030]];
-        }
-        bool isPrimeSmallNot3571113NotDiv2(unsigned int n){
-            if(!(n%3) || !(n%5) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            doSieve(n);
-            return sieve[n/30030*5760+indexes[n%30030]];
-        }
-        bool isPrimeSmallNot571113NotDiv23(unsigned int n){
-            if(!(n%5) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            doSieve(n);
-            return sieve[n/30030*5760+indexes[n%30030]];
-        }
-        bool isPrimeSmallNot371113NotDiv25(unsigned int n){
-            if(!(n%3) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            doSieve(n);
-            return sieve[n/30030*5760+indexes[n%30030]];
-        }
-        bool isPrimeSmallNot71113NotDiv235(unsigned int n){
-            if(!(n%7) || !(n%11) || !(n%13))
-                return false;
-            doSieve(n);
-            return sieve[n/30030*5760+indexes[n%30030]];
-        }
-        bool isPrimeSmallNotDiv23571113(unsigned int n){
-            doSieve(n);
-            return sieve[n/30030*5760+indexes[n%30030]];
-        }
-
         bool isPrimeSmallUnsafe(unsigned int n){
             if(n==2 || n==3 || n==5 || n==7 || n==11 || n==13)
                 return true;
@@ -478,63 +222,6 @@ class PrimeData {
                 return false;
             return sieve[n/30030*5760+indexes[n%30030]];
         }
-        bool isPrimeSmallNotDiv2Unsafe(unsigned int n){
-            if(n==3 || n==5 || n==7 || n==11 || n==13)
-                return true;
-            if(!(n%3) || !(n%5) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            return sieve[n/30030*5760+indexes[n%30030]];
-        }
-        bool isPrimeSmallNotDiv23Unsafe(unsigned int n){
-            if(n==5 || n==7 || n==11 || n==13)
-                return true;
-            if(!(n%5) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            return sieve[n/30030*5760+indexes[n%30030]];
-        }
-        bool isPrimeSmallNotDiv25Unsafe(unsigned int n){
-            if(n==3 || n==7 || n==11 || n==13)
-                return true;
-            if(!(n%3) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            return sieve[n/30030*5760+indexes[n%30030]];
-        }
-        bool isPrimeSmallNotDiv235Unsafe(unsigned int n){
-            if(n==7 || n==11 || n==13)
-                return true;
-            if(!(n%7) || !(n%11) || !(n%13))
-                return false;
-            return sieve[n/30030*5760+indexes[n%30030]];
-        }
-        bool isPrimeSmallNot23571113Unsafe(unsigned int n){
-            if(!(n&1U) || !(n%3) || !(n%5) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            return sieve[n/30030*5760+indexes[n%30030]];
-        }
-        bool isPrimeSmallNot3571113NotDiv2Unsafe(unsigned int n){
-            if(!(n%3) || !(n%5) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            return sieve[n/30030*5760+indexes[n%30030]];
-        }
-        bool isPrimeSmallNot571113NotDiv23Unsafe(unsigned int n){
-            if(!(n%5) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            return sieve[n/30030*5760+indexes[n%30030]];
-        }
-        bool isPrimeSmallNot371113NotDiv25Unsafe(unsigned int n){
-            if(!(n%3) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            return sieve[n/30030*5760+indexes[n%30030]];
-        }
-        bool isPrimeSmallNot71113NotDiv235Unsafe(unsigned int n){
-            if(!(n%7) || !(n%11) || !(n%13))
-                return false;
-            return sieve[n/30030*5760+indexes[n%30030]];
-        }
-        bool isPrimeSmallNotDiv23571113Unsafe(unsigned int n){
-            return sieve[n/30030*5760+indexes[n%30030]];
-        }
-
         bool isPrimeWheel(unsigned long long n){
             if(n==2 || n==3 || n==5 || n==7 || n==11 || n==13)
                 return true;
@@ -552,324 +239,11 @@ class PrimeData {
             }
             return true;
         }
-        bool isPrimeNot1NotDiv2Wheel(unsigned long long n){
-            if(n==3 || n==5 || n==7 || n==11 || n==13)
-                return true;
-            if(!(n%3) || !(n%5) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            unsigned int p=17;
-            unsigned short w=1;
-            unsigned int sqrtn=sqrt(n);
-            while(p<=sqrtn){
-                if(!(n%p))
-                    return false;
-                p+=wheel[w];
-                ++w;
-                w%=5760;
-            }
-            return true;
-        }
-        bool isPrimeNot1NotDiv23Wheel(unsigned long long n){
-            if(n==5 || n==7 || n==11 || n==13)
-                return true;
-            if(!(n%5) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            unsigned int p=17;
-            unsigned short w=1;
-            unsigned int sqrtn=sqrt(n);
-            while(p<=sqrtn){
-                if(!(n%p))
-                    return false;
-                p+=wheel[w];
-                ++w;
-                w%=5760;
-            }
-            return true;
-        }
-        bool isPrimeNot1NotDiv25Wheel(unsigned long long n){
-            if(n==3 || n==7 || n==11 || n==13)
-                return true;
-            if(!(n%3) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            unsigned int p=17;
-            unsigned short w=1;
-            unsigned int sqrtn=sqrt(n);
-            while(p<=sqrtn){
-                if(!(n%p))
-                    return false;
-                p+=wheel[w];
-                ++w;
-                w%=5760;
-            }
-            return true;
-        }
-        bool isPrimeNot1NotDiv235Wheel(unsigned long long n){
-            if(n==7 || n==11 || n==13)
-                return true;
-            if(!(n%7) || !(n%11) || !(n%13))
-                return false;
-            unsigned int p=17;
-            unsigned short w=1;
-            unsigned int sqrtn=sqrt(n);
-            while(p<=sqrtn){
-                if(!(n%p))
-                    return false;
-                p+=wheel[w];
-                ++w;
-                w%=5760;
-            }
-            return true;
-        }
-        bool isPrimeNot123571113Wheel(unsigned long long n){
-            if(!(n&1U) || !(n%3) || !(n%5) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            unsigned int p=17;
-            unsigned short w=1;
-            unsigned int sqrtn=sqrt(n);
-            while(p<=sqrtn){
-                if(!(n%p))
-                    return false;
-                p+=wheel[w];
-                ++w;
-                w%=5760;
-            }
-            return true;
-        }
-        bool isPrimeNot13571113NotDiv2Wheel(unsigned long long n){
-            if(!(n%3) || !(n%5) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            unsigned int p=17;
-            unsigned short w=1;
-            unsigned int sqrtn=sqrt(n);
-            while(p<=sqrtn){
-                if(!(n%p))
-                    return false;
-                p+=wheel[w];
-                ++w;
-                w%=5760;
-            }
-            return true;
-        }
-        bool isPrimeNot1571113NotDiv23Wheel(unsigned long long n){
-            if(!(n%5) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            unsigned int p=17;
-            unsigned short w=1;
-            unsigned int sqrtn=sqrt(n);
-            while(p<=sqrtn){
-                if(!(n%p))
-                    return false;
-                p+=wheel[w];
-                ++w;
-                w%=5760;
-            }
-            return true;
-        }
-        bool isPrimeNot1371113NotDiv25Wheel(unsigned long long n){
-            if(!(n%3) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            unsigned int p=17;
-            unsigned short w=1;
-            unsigned int sqrtn=sqrt(n);
-            while(p<=sqrtn){
-                if(!(n%p))
-                    return false;
-                p+=wheel[w];
-                ++w;
-                w%=5760;
-            }
-            return true;
-        }
-        bool isPrimeNot171113NotDiv235Wheel(unsigned long long n){
-            if(!(n%7) || !(n%11) || !(n%13))
-                return false;
-            unsigned int p=17;
-            unsigned short w=1;
-            unsigned int sqrtn=sqrt(n);
-            while(p<=sqrtn){
-                if(!(n%p))
-                    return false;
-                p+=wheel[w];
-                ++w;
-                w%=5760;
-            }
-            return true;
-        }
-        bool isPrimeNot1NotDiv23571113Wheel(unsigned long long n){
-            unsigned int p=17;
-            unsigned short w=1;
-            unsigned int sqrtn=sqrt(n);
-            while(p<=sqrtn){
-                if(!(n%p))
-                    return false;
-                p+=wheel[w];
-                ++w;
-                w%=5760;
-            }
-            return true;
-        }
-
         bool isPrimeSmallWheel(unsigned int n){
             if(n==2 || n==3 || n==5 || n==7 || n==11 || n==13)
                 return true;
             if(n==1 || !(n&1U) || !(n%3) || !(n%5) || !(n%7) || !(n%11) || !(n%13))
                 return false;
-            unsigned int p=17;
-            unsigned short w=1;
-            unsigned int sqrtn=sqrt(n);
-            while(p<=sqrtn){
-                if(!(n%p))
-                    return false;
-                p+=wheel[w];
-                ++w;
-                w%=5760;
-            }
-            return true;
-        }
-        bool isPrimeSmallNot1NotDiv2Wheel(unsigned int n){
-            if(n==3 || n==5 || n==7 || n==11 || n==13)
-                return true;
-            if(!(n%3) || !(n%5) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            unsigned int p=17;
-            unsigned short w=1;
-            unsigned int sqrtn=sqrt(n);
-            while(p<=sqrtn){
-                if(!(n%p))
-                    return false;
-                p+=wheel[w];
-                ++w;
-                w%=5760;
-            }
-            return true;
-        }
-        bool isPrimeSmallNot1NotDiv23Wheel(unsigned int n){
-            if(n==5 || n==7 || n==11 || n==13)
-                return true;
-            if(!(n%5) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            unsigned int p=17;
-            unsigned short w=1;
-            unsigned int sqrtn=sqrt(n);
-            while(p<=sqrtn){
-                if(!(n%p))
-                    return false;
-                p+=wheel[w];
-                ++w;
-                w%=5760;
-            }
-            return true;
-        }
-        bool isPrimeSmallNot1NotDiv25Wheel(unsigned int n){
-            if(n==3 || n==7 || n==11 || n==13)
-                return true;
-            if(!(n%3) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            unsigned int p=17;
-            unsigned short w=1;
-            unsigned int sqrtn=sqrt(n);
-            while(p<=sqrtn){
-                if(!(n%p))
-                    return false;
-                p+=wheel[w];
-                ++w;
-                w%=5760;
-            }
-            return true;
-        }
-        bool isPrimeSmallNot1NotDiv235Wheel(unsigned int n){
-            if(n==7 || n==11 || n==13)
-                return true;
-            if(!(n%7) || !(n%11) || !(n%13))
-                return false;
-            unsigned int p=17;
-            unsigned short w=1;
-            unsigned int sqrtn=sqrt(n);
-            while(p<=sqrtn){
-                if(!(n%p))
-                    return false;
-                p+=wheel[w];
-                ++w;
-                w%=5760;
-            }
-            return true;
-        }
-        bool isPrimeSmallNot123571113Wheel(unsigned int n){
-            if(!(n&1U) || !(n%3) || !(n%5) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            unsigned int p=17;
-            unsigned short w=1;
-            unsigned int sqrtn=sqrt(n);
-            while(p<=sqrtn){
-                if(!(n%p))
-                    return false;
-                p+=wheel[w];
-                ++w;
-                w%=5760;
-            }
-            return true;
-        }
-        bool isPrimeSmallNot13571113NotDiv2Wheel(unsigned int n){
-            if(!(n%3) || !(n%5) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            unsigned int p=17;
-            unsigned short w=1;
-            unsigned int sqrtn=sqrt(n);
-            while(p<=sqrtn){
-                if(!(n%p))
-                    return false;
-                p+=wheel[w];
-                ++w;
-                w%=5760;
-            }
-            return true;
-        }
-        bool isPrimeSmallNot1571113NotDiv23Wheel(unsigned int n){
-            if(!(n%5) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            unsigned int p=17;
-            unsigned short w=1;
-            unsigned int sqrtn=sqrt(n);
-            while(p<=sqrtn){
-                if(!(n%p))
-                    return false;
-                p+=wheel[w];
-                ++w;
-                w%=5760;
-            }
-            return true;
-        }
-        bool isPrimeSmallNot1371113NotDiv25Wheel(unsigned int n){
-            if(!(n%3) || !(n%7) || !(n%11) || !(n%13))
-                return false;
-            unsigned int p=17;
-            unsigned short w=1;
-            unsigned int sqrtn=sqrt(n);
-            while(p<=sqrtn){
-                if(!(n%p))
-                    return false;
-                p+=wheel[w];
-                ++w;
-                w%=5760;
-            }
-            return true;
-        }
-        bool isPrimeSmallNot171113NotDiv235Wheel(unsigned int n){
-            if(!(n%7) || !(n%11) || !(n%13))
-                return false;
-            unsigned int p=17;
-            unsigned short w=1;
-            unsigned int sqrtn=sqrt(n);
-            while(p<=sqrtn){
-                if(!(n%p))
-                    return false;
-                p+=wheel[w];
-                ++w;
-                w%=5760;
-            }
-            return true;
-        }
-        bool isPrimeSmallNot1NotDiv23571113Wheel(unsigned int n){
             unsigned int p=17;
             unsigned short w=1;
             unsigned int sqrtn=sqrt(n);
@@ -1627,7 +1001,6 @@ class PrimeData {
             else
                 return 0;
         }
-
         unsigned int numPrimesUpToSmall(unsigned int n){
             doSieve(n);
             if(n>=17){
